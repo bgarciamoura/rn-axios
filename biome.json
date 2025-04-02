@@ -1,0 +1,101 @@
+{
+	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"ignoreUnknown": true,
+		"ignore": [
+			"node_modules",
+			"dist",
+			"build",
+			"coverage",
+			".next",
+			".expo",
+			"*.lock",
+			"*.log"
+		]
+	},
+	"formatter": {
+		"enabled": true,
+		"formatWithErrors": false,
+		"ignore": [
+			"node_modules",
+			"dist",
+			"build",
+			"coverage",
+			".next",
+			".expo",
+			"*.lock",
+			"*.log"
+		],
+		"attributePosition": "auto",
+		"indentStyle": "tab",
+		"indentWidth": 2,
+		"lineWidth": 100,
+		"lineEnding": "lf"
+	},
+	"organizeImports": {
+		"enabled": true
+	},
+	"linter": {
+		"enabled": true,
+		"ignore": [
+			"node_modules",
+			"dist",
+			"build",
+			"coverage",
+			".next",
+			".expo",
+			"*.lock",
+			"*.log"
+		],
+		"rules": {
+			"recommended": true
+		}
+	},
+	"javascript": {
+		"formatter": {
+			"arrowParentheses": "always",
+			"bracketSameLine": false,
+			"bracketSpacing": true,
+			"jsxQuoteStyle": "double",
+			"quoteProperties": "asNeeded",
+			"semicolons": "always",
+			"trailingCommas": "all"
+		},
+		"parser": {
+			"unsafeParameterDecoratorsEnabled": false
+		}
+	},
+	"json": {
+		"formatter": {
+			"trailingCommas": "none"
+		}
+	},
+	"overrides": [
+		{
+			"include": [
+				"*.test.js",
+				"*.test.ts",
+				"*.spec.js",
+				"*.spec.ts",
+				"**/__tests__/**"
+			],
+			"linter": {
+				"rules": {}
+			}
+		},
+		{
+			"include": [
+				"*.config.js",
+				"biome.json"
+			],
+			"organizeImports": {
+				"enabled": false
+			}
+		}
+	]
+}
