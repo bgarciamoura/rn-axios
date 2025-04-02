@@ -53,7 +53,14 @@
 			"*.log"
 		],
 		"rules": {
-			"recommended": true
+			"recommended": true,
+			"style": {
+				"noInferrableTypes": "off",
+				"useImportType": "off"
+			},
+			"suspicious": {
+				"noExplicitAny": "off"
+			}
 		}
 	},
 	"javascript": {
@@ -61,7 +68,7 @@
 			"arrowParentheses": "always",
 			"bracketSameLine": false,
 			"bracketSpacing": true,
-			"jsxQuoteStyle": "double",
+			"jsxQuoteStyle": "single",
 			"quoteProperties": "asNeeded",
 			"semicolons": "always",
 			"trailingCommas": "all"
@@ -94,7 +101,7 @@
 				"biome.json"
 			],
 			"organizeImports": {
-				"enabled": false
+				"enabled": true
 			}
 		}
 	]
