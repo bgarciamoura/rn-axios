@@ -3,15 +3,14 @@ import { UserService } from "../domain/services/UserService";
 import { User } from "../domain/entities/User";
 import { getToken } from "../utils/auth";
 
-const API_URL = process.env.API_URL || "https://api.myapp.com";
+const API_URL = process.env.API_URL || "https://digi-api.com/api/v1";
 
 export const userService = (() => {
-  const baseService = ApiServiceFactory.create<User>(
-    "users",
-    API_URL,
+  const baseService = ApiServiceFactory.createJson<User>("", {
+    baseURL: API_URL,
     getToken,
-    __DEV__,
-  );
+    useLogger: __DEV__,
+  });
 
-  return new UserService(baseService.httpClient, "users");
+  return new UserService(baseService.httpClient, "digimon");
 })();

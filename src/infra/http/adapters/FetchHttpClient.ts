@@ -1,11 +1,11 @@
-import { HttpClient } from "./interfaces/HttpClient";
+import { HttpClient } from "../interfaces/HttpClient";
 import {
   HttpRequest,
   HttpResponse,
   HttpHeaders,
   HttpParams,
-} from "./types/HttpTypes";
-import { HttpConfig } from "./HttpConfig";
+} from "../types/HttpTypes";
+import { HttpConfig } from "../HttpConfig";
 import {
   HttpError,
   NetworkError,
@@ -14,7 +14,7 @@ import {
   ForbiddenError,
   NotFoundError,
   ServerError,
-} from "./HttpError";
+} from "../HttpError";
 
 export class FetchHttpClient implements HttpClient {
   constructor(private readonly config: HttpConfig) {}
@@ -172,4 +172,3 @@ export class FetchHttpClient implements HttpClient {
     });
   }
 }
-

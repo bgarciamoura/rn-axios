@@ -1,129 +1,209 @@
-import { StyleSheet, Image, Platform } from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  ActivityIndicator,
+  StyleSheet,
+  Button,
+  TextInput,
+  RefreshControl,
+} from "react-native";
+import { User } from "@domain/entities/User";
+import { useUsersPaginated } from "@hooks/queries";
 
-import { Collapsible } from "@components/Collapsible";
-import { ExternalLink } from "@components/ExternalLink";
-import ParallaxScrollView from "@components/ParallaxScrollView";
-import { ThemedText } from "@components/ThemedText";
-import { ThemedView } from "@components/ThemedView";
-import { IconSymbol } from "@components/ui/IconSymbol";
+const UsersPaginatedScreen = () => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchParams, setSearchParams] = useState<Record<string, any>>({});
 
-export default function TabTwoScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: "#D0D0D0", dark: "#353636" }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }
-    >
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Explore</ThemedText>
-      </ThemedView>
-      <ThemedText>
-        This app includes example code to help you get started.
-      </ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{" "}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText>{" "}
-          and{" "}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in{" "}
-          <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{" "}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the
-          web version, press <ThemedText type="defaultSemiBold">w</ThemedText>{" "}
-          in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the{" "}
-          <ThemedText type="defaultSemiBold">@2x</ThemedText> and{" "}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to
-          provide files for different screen densities
-        </ThemedText>
-        <Image
-          source={require("@assets/images/react-logo.png")}
-          style={{ alignSelf: "center" }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Custom fonts">
-        <ThemedText>
-          Open <ThemedText type="defaultSemiBold">app/_layout.tsx</ThemedText>{" "}
-          to see how to load{" "}
-          <ThemedText style={{ fontFamily: "SpaceMono" }}>
-            custom fonts such as this one.
-          </ThemedText>
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/versions/latest/sdk/font">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{" "}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook
-          lets you inspect what the user's current color scheme is, and so you
-          can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{" "}
-          <ThemedText type="defaultSemiBold">
-            components/HelloWave.tsx
-          </ThemedText>{" "}
-          component uses the powerful{" "}
-          <ThemedText type="defaultSemiBold">
-            react-native-reanimated
-          </ThemedText>{" "}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The{" "}
-              <ThemedText type="defaultSemiBold">
-                components/ParallaxScrollView.tsx
-              </ThemedText>{" "}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+  // Infinite Query para usuários com paginação
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    refetch,
+    isRefetching,
+  } = useUsersPaginated(searchParams);
+
+  // Extrair todos os usuários de todas as páginas
+  const users = data?.pages.flatMap((page) => page.data) || [];
+
+  // Handlers
+  const handleSearch = () => {
+    if (searchTerm.trim()) {
+      setSearchParams({ name: searchTerm });
+    } else {
+      setSearchParams({});
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  };
+
+  const handleRefresh = () => {
+    refetch();
+  };
+
+  // Renderizar o item do usuário
+  const renderUserItem = ({ item }: { item: User }) => (
+    <View style={styles.userItem}>
+      <Text style={styles.userName}>{item.name}</Text>
+      <Text style={styles.userEmail}>{item.email}</Text>
+      <Text style={styles.userRole}>Função: {item.role}</Text>
+    </View>
   );
-}
+
+  // Renderizar o indicador de carregamento no final da lista
+  const renderFooter = () => {
+    if (!isFetchingNextPage) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size='small' color='#0000ff' />
+        <Text style={styles.footerText}>Carregando mais...</Text>
+      </View>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size='large' color='#0000ff' />
+      </View>
+    );
+  }
+
+  if (isError && error) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorText}>Erro: {error.message}</Text>
+        <Button title='Tentar novamente' onPress={() => refetch()} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Usuários (Paginado)</Text>
+
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder='Buscar por nome'
+          value={searchTerm}
+          onChangeText={setSearchTerm}
+        />
+        <Button title='Buscar' onPress={handleSearch} />
+      </View>
+
+      <FlatList
+        data={users}
+        keyExtractor={(item, index) => `${item.id}-${index}`}
+        renderItem={renderUserItem}
+        ListFooterComponent={renderFooter}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.3}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={handleRefresh}
+            colors={["#0000ff"]}
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Nenhum usuário encontrado</Text>
+          </View>
+        }
+      />
+
+      {hasNextPage && (
+        <Button title='Carregar mais' onPress={handleLoadMore} disabled={isFetchingNextPage} />
+      )}
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: "#808080",
-    bottom: -90,
-    left: -35,
-    position: "absolute",
+  container: {
+    flex: 1,
+    padding: 16,
   },
-  titleContainer: {
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 16,
+  },
+  searchContainer: {
     flexDirection: "row",
-    gap: 8,
+    marginBottom: 16,
+  },
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 4,
+    padding: 8,
+    marginRight: 8,
+    backgroundColor: "#fff",
+  },
+  userItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    marginBottom: 8,
+    backgroundColor: "#fff",
+    borderRadius: 4,
+  },
+  userName: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  userEmail: {
+    fontSize: 14,
+    color: "#666",
+  },
+  userRole: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 4,
+  },
+  errorText: {
+    color: "red",
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  footerLoader: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  footerText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: "#666",
+  },
+  emptyContainer: {
+    padding: 32,
+    alignItems: "center",
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#666",
   },
 });
+
+export default UsersPaginatedScreen;

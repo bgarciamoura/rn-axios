@@ -1,4 +1,4 @@
-import { HttpInterceptor } from '../HttpInterceptor';
+import { HttpInterceptor } from "../interfaces/HttpInterceptor";
 
 export class LogInterceptor extends HttpInterceptor {
   onRequest(config: any): any {
@@ -11,7 +11,7 @@ export class LogInterceptor extends HttpInterceptor {
   }
 
   onRequestError(error: any): any {
-    console.error('[REQUEST ERROR]', error);
+    console.error("[REQUEST ERROR]", error);
     return Promise.reject(error);
   }
 
@@ -24,7 +24,8 @@ export class LogInterceptor extends HttpInterceptor {
   }
 
   onResponseError(error: any): any {
-    console.error('[RESPONSE ERROR]', error);
+    console.error("[RESPONSE ERROR]", error);
     return Promise.reject(error);
   }
 }
+

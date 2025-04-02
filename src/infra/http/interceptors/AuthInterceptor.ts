@@ -1,4 +1,4 @@
-import { HttpInterceptor } from '../HttpInterceptor';
+import { HttpInterceptor } from "../interfaces/HttpInterceptor";
 
 export class AuthInterceptor extends HttpInterceptor {
   constructor(private readonly getToken: () => string | null) {
@@ -28,3 +28,4 @@ export class AuthInterceptor extends HttpInterceptor {
     return Promise.reject(error);
   }
 }
+

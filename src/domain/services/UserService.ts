@@ -1,7 +1,8 @@
-import { ApiService } from "./ApiService";
+import { ApiServicePaginated } from "./ApiServicePaginated";
 import { User } from "../entities/User";
+import { PaginatedResponse } from "@hooks/queries/useInfiniteQuery";
 
-export class UserService extends ApiService<User> {
+export class UserService extends ApiServicePaginated<User> {
   async findByEmail(email: string): Promise<User | null> {
     const params = { email };
     const response = await this.httpClient.get<User[]>(
@@ -22,6 +23,14 @@ export class UserService extends ApiService<User> {
       profileData,
     );
     return response.data;
+  }
+
+  async getPaginatedUsers(
+    page: number = 1,
+    limit: number = 10,
+    params?: Record<string, any>,
+  ): Promise<PaginatedResponse<User>> {
+    return this.getPaginated(page, limit, params);
   }
 }
 

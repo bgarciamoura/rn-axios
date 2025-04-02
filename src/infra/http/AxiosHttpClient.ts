@@ -1,16 +1,17 @@
 import axios, {
-  type AxiosInstance,
-  type AxiosResponse,
-  type AxiosError,
+  AxiosInstance,
+  AxiosResponse,
+  AxiosError,
+  AxiosRequestConfig,
 } from "axios";
-import type { HttpClient } from "./interfaces/HttpClient";
-import type {
+import { HttpClient } from "./interfaces/HttpClient";
+import {
   HttpRequest,
   HttpResponse,
   HttpHeaders,
   HttpParams,
 } from "./types/HttpTypes";
-import type { HttpConfig } from "./HttpConfig";
+import { HttpConfig } from "./HttpConfig";
 import {
   HttpError,
   NetworkError,
@@ -20,13 +21,15 @@ import {
   NotFoundError,
   ServerError,
 } from "./HttpError";
-import type { HttpInterceptor } from "./interfaces/HttpInterceptor";
+import { HttpInterceptor } from "./interfaces/HttpInterceptor";
+import { ContentType } from "./types/ContentType";
+import { getSerializer } from "./serializers/Serializer";
 
 export class AxiosHttpClient implements HttpClient {
   private readonly axios: AxiosInstance;
 
   constructor(
-    config: HttpConfig,
+    private readonly config: HttpConfig,
     private readonly interceptors: HttpInterceptor[] = [],
   ) {
     this.axios = axios.create({
@@ -102,17 +105,56 @@ export class AxiosHttpClient implements HttpClient {
 
   async request<T = any>(request: HttpRequest): Promise<HttpResponse<T>> {
     try {
-      const response: AxiosResponse<T> = await this.axios.request({
+      // Preparar a configuração da requisição
+      const axiosConfig: AxiosRequestConfig = {
         url: request.url,
         method: request.method,
-        headers: request.headers,
+        headers: request.headers || {},
         params: request.params,
-        data: request.data,
         timeout: request.timeout,
-      });
+      };
+
+      // Processa o corpo da requisição com base no tipo de conteúdo
+      if (request.data) {
+        const contentType =
+          request.headers?.["Content-Type"] ||
+          this.config.headers["Content-Type"];
+        const serializer = getSerializer(
+          contentType as ContentType,
+          this.config.contentTypeOptions.xmlRootName,
+        );
+
+        axiosConfig.data = serializer.serialize(request.data);
+
+        // Se for multipart/form-data, o Axios define o Content-Type automaticamente com boundary
+        if (contentType !== ContentType.FORM_DATA) {
+          axiosConfig.headers["Content-Type"] = contentType;
+        }
+      }
+
+      const response: AxiosResponse<T> = await this.axios.request(axiosConfig);
+
+      // Processa a resposta com base no tipo de conteúdo de resposta
+      let processedData = response.data;
+      const responseContentType =
+        response.headers["content-type"] ||
+        this.config.contentTypeOptions.responseType;
+
+      if (typeof responseContentType === "string") {
+        // Extrai o content-type básico sem parâmetros extras (como charset)
+        const baseContentType = responseContentType.split(";")[0].trim();
+
+        if (baseContentType === ContentType.XML) {
+          const serializer = getSerializer(
+            ContentType.XML,
+            this.config.contentTypeOptions.xmlRootName,
+          );
+          processedData = serializer.deserialize(response.data);
+        }
+      }
 
       return {
-        data: response.data,
+        data: processedData,
         status: response.status,
         headers: response.headers as HttpHeaders,
       };

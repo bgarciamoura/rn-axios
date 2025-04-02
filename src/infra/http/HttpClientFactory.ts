@@ -6,6 +6,7 @@ import { HttpInterceptor } from "./interfaces/HttpInterceptor";
 
 type HttpClientType = "axios" | "fetch";
 
+// biome-ignore lint/complexity/noStaticOnlyClass: <explanation>
 export class HttpClientFactory {
   static create(
     type: HttpClientType = "axios",

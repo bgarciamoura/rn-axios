@@ -3,7 +3,7 @@ import type {
   HttpResponse,
   HttpHeaders,
   HttpParams,
-} from "./HttpTypes";
+} from "../types/HttpTypes";
 
 export interface HttpClient {
   request<T = any>(request: HttpRequest): Promise<HttpResponse<T>>;

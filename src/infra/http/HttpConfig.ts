@@ -1,10 +1,16 @@
 import { HttpHeaders, HttpParams } from "./types/HttpTypes";
+import {
+  ContentType,
+  ContentTypeOptions,
+  defaultContentTypeOptions,
+} from "./types/ContentType";
 
 export interface HttpConfig {
   baseURL: string;
   timeout: number;
   headers: HttpHeaders;
   params?: HttpParams;
+  contentTypeOptions: ContentTypeOptions;
 }
 
 export class HttpConfigBuilder {
@@ -12,9 +18,10 @@ export class HttpConfigBuilder {
     baseURL: "",
     timeout: 30000,
     headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
+      "Content-Type": ContentType.JSON,
+      Accept: ContentType.JSON,
     },
+    contentTypeOptions: { ...defaultContentTypeOptions },
   };
 
   withBaseURL(baseURL: string): HttpConfigBuilder {
@@ -37,6 +44,53 @@ export class HttpConfigBuilder {
     return this;
   }
 
+  withContentType(options: Partial<ContentTypeOptions>): HttpConfigBuilder {
+    this.config.contentTypeOptions = {
+      ...this.config.contentTypeOptions,
+      ...options,
+    };
+
+    // Atualiza os headers com base nos tipos de conteúdo
+    this.config.headers = {
+      ...this.config.headers,
+      "Content-Type":
+        options.requestType || this.config.contentTypeOptions.requestType,
+      Accept:
+        options.responseType || this.config.contentTypeOptions.responseType,
+    };
+
+    return this;
+  }
+
+  withJsonContent(): HttpConfigBuilder {
+    return this.withContentType({
+      requestType: ContentType.JSON,
+      responseType: ContentType.JSON,
+    });
+  }
+
+  withXmlContent(xmlRootName: string = "root"): HttpConfigBuilder {
+    return this.withContentType({
+      requestType: ContentType.XML,
+      responseType: ContentType.XML,
+      xmlRootName,
+    });
+  }
+
+  withFormDataContent(): HttpConfigBuilder {
+    return this.withContentType({
+      requestType: ContentType.FORM_DATA,
+      responseType: ContentType.JSON,
+    });
+  }
+
+  withFormUrlencodedContent(): HttpConfigBuilder {
+    return this.withContentType({
+      requestType: ContentType.FORM_URLENCODED,
+      responseType: ContentType.JSON,
+    });
+  }
+
   build(): HttpConfig {
     return { ...this.config };
   }
@@ -45,4 +99,3 @@ export class HttpConfigBuilder {
 export const createDefaultConfig = (): HttpConfig => {
   return new HttpConfigBuilder().build();
 };
-

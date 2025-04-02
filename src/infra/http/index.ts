@@ -5,7 +5,8 @@ export * from "./HttpClientFactory";
 export * from "./HttpConfig";
 export * from "./HttpError";
 export * from "./interfaces/HttpInterceptor";
+export * from "./types/ContentType";
+export * from "./serializers/Serializer";
 export * from "./interceptors/AuthInterceptor";
 export * from "./interceptors/LogInterceptor";
 export * from "./adapters/FetchHttpClient";
-

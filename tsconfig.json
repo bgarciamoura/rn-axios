@@ -20,6 +20,15 @@
       ],
       "@scripts/*": [
         "./src/scripts/*"
+      ],
+      "@domain/*": [
+        "./src/domain/*"
+      ],
+      "@providers/*": [
+        "./src/providers/*"
+      ],
+      "@config/*": [
+        "./src/config/*"
       ]
     }
   },
