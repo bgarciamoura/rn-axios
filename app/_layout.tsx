@@ -1,19 +1,19 @@
-import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
-import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
-import "react-native-reanimated";
+import { useFonts } from 'expo-font';
+import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import 'react-native-reanimated';
 
-import { QueryProvider } from "@/src/providers/QueryProvider";
-import { QueryErrorBoundary } from "@/src/components/QueryErrorBoundary";
+import { QueryProvider } from '@/src/providers/QueryProvider';
+import { QueryErrorBoundary } from '@/src/components/QueryErrorBoundary';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [loaded] = useFonts({
-    SpaceMono: require("@assets/fonts/SpaceMono-Regular.ttf"),
+    SpaceMono: require('@assets/fonts/SpaceMono-Regular.ttf'),
   });
 
   useEffect(() => {

@@ -1,151 +1,201 @@
 import {
-  HttpClientFactory,
-  HttpConfigBuilder,
-  AuthInterceptor,
-  LogInterceptor,
-  ContentType,
-  ContentTypeOptions,
-} from "../../infra/http";
-import { ApiService } from "./ApiService";
-import { ApiServicePaginated } from "./ApiServicePaginated";
+	HttpClientFactory,
+	HttpConfigBuilder,
+	AuthInterceptor,
+	LogInterceptor,
+	ContentType,
+	ContentTypeOptions,
+	SSLPinningConfig,
+	PinningMode,
+} from '../../infra/http';
+import { ApiService } from './ApiService';
+import { ApiServicePaginated } from './ApiServicePaginated';
 
-export type HttpClientType = "axios" | "fetch";
+export type HttpClientType = 'axios' | 'fetch';
 
 export interface ApiServiceOptions {
-  baseURL: string;
-  timeout?: number;
-  getToken?: () => string | null;
-  useLogger?: boolean;
-  contentType?: Partial<ContentTypeOptions>;
-  httpClientType?: HttpClientType;
+	baseURL: string;
+	timeout?: number;
+	getToken?: () => string | null;
+	useLogger?: boolean;
+	contentType?: Partial<ContentTypeOptions>;
+	httpClientType?: HttpClientType;
+	sslPinning?: SSLPinningConfig;
 }
 
 // biome-ignore lint/complexity/noStaticOnlyClass: <explanation>
 export class ApiServiceFactory {
-  static create<T>(
-    entityName: string,
-    options: ApiServiceOptions,
-  ): ApiService<T> {
-    const configBuilder = new HttpConfigBuilder()
-      .withBaseURL(options.baseURL)
-      .withTimeout(options.timeout || 30000);
+	static create<T>(entityName: string, options: ApiServiceOptions): ApiService<T> {
+		const configBuilder = new HttpConfigBuilder()
+			.withBaseURL(options.baseURL)
+			.withTimeout(options.timeout || 30000);
 
-    // Configurar o tipo de conteúdo
-    if (options.contentType) {
-      configBuilder.withContentType(options.contentType);
-    }
+		if (options.contentType) {
+			configBuilder.withContentType(options.contentType);
+		}
 
-    const interceptors = [];
+		if (options.sslPinning) {
+			configBuilder.withSSLPinning(options.sslPinning);
+		}
 
-    if (options.getToken) {
-      interceptors.push(new AuthInterceptor(options.getToken));
-    }
+		const interceptors = [];
 
-    if (options.useLogger) {
-      interceptors.push(new LogInterceptor());
-    }
+		if (options.getToken) {
+			interceptors.push(new AuthInterceptor(options.getToken));
+		}
 
-    const httpClient = HttpClientFactory.create(
-      options.httpClientType || "axios",
-      configBuilder.build(),
-      interceptors,
-    );
+		if (options.useLogger) {
+			interceptors.push(new LogInterceptor());
+		}
 
-    return new (class extends ApiService<T> {
-      constructor() {
-        super(httpClient, entityName);
-      }
-    })();
-  }
+		const httpClient = HttpClientFactory.create(
+			options.httpClientType || 'axios',
+			configBuilder.build(),
+			interceptors,
+		);
 
-  static createPaginated<T>(
-    entityName: string,
-    options: ApiServiceOptions,
-  ): ApiServicePaginated<T> {
-    const configBuilder = new HttpConfigBuilder()
-      .withBaseURL(options.baseURL)
-      .withTimeout(options.timeout || 30000);
+		return new (class extends ApiService<T> {
+			constructor() {
+				super(httpClient, entityName);
+			}
+		})();
+	}
 
-    // Configurar o tipo de conteúdo
-    if (options.contentType) {
-      configBuilder.withContentType(options.contentType);
-    }
+	static createPaginated<T>(
+		entityName: string,
+		options: ApiServiceOptions,
+	): ApiServicePaginated<T> {
+		const configBuilder = new HttpConfigBuilder()
+			.withBaseURL(options.baseURL)
+			.withTimeout(options.timeout || 30000);
 
-    const interceptors = [];
+		if (options.contentType) {
+			configBuilder.withContentType(options.contentType);
+		}
 
-    if (options.getToken) {
-      interceptors.push(new AuthInterceptor(options.getToken));
-    }
+		if (options.sslPinning) {
+			configBuilder.withSSLPinning(options.sslPinning);
+		}
 
-    if (options.useLogger) {
-      interceptors.push(new LogInterceptor());
-    }
+		const interceptors = [];
 
-    const httpClient = HttpClientFactory.create(
-      options.httpClientType || "axios",
-      configBuilder.build(),
-      interceptors,
-    );
+		if (options.getToken) {
+			interceptors.push(new AuthInterceptor(options.getToken));
+		}
 
-    return new (class extends ApiServicePaginated<T> {
-      constructor() {
-        super(httpClient, entityName);
-      }
-    })();
-  }
+		if (options.useLogger) {
+			interceptors.push(new LogInterceptor());
+		}
 
-  // Métodos utilitários para simplificar a criação com formatos comuns
+		const httpClient = HttpClientFactory.create(
+			options.httpClientType || 'axios',
+			configBuilder.build(),
+			interceptors,
+		);
 
-  static createJson<T>(
-    entityName: string,
-    options: Omit<ApiServiceOptions, "contentType">,
-  ): ApiService<T> {
-    return this.create<T>(entityName, {
-      ...options,
-      contentType: {
-        requestType: ContentType.JSON,
-        responseType: ContentType.JSON,
-      },
-    });
-  }
+		return new (class extends ApiServicePaginated<T> {
+			constructor() {
+				super(httpClient, entityName);
+			}
+		})();
+	}
 
-  static createXml<T>(
-    entityName: string,
-    options: Omit<ApiServiceOptions, "contentType"> & { xmlRootName?: string },
-  ): ApiService<T> {
-    return this.create<T>(entityName, {
-      ...options,
-      contentType: {
-        requestType: ContentType.XML,
-        responseType: ContentType.XML,
-        xmlRootName: options.xmlRootName,
-      },
-    });
-  }
+	static createJson<T>(
+		entityName: string,
+		options: Omit<ApiServiceOptions, 'contentType'>,
+	): ApiService<T> {
+		return this.create<T>(entityName, {
+			...options,
+			contentType: {
+				requestType: ContentType.JSON,
+				responseType: ContentType.JSON,
+			},
+		});
+	}
 
-  static createFormData<T>(
-    entityName: string,
-    options: Omit<ApiServiceOptions, "contentType">,
-  ): ApiService<T> {
-    return this.create<T>(entityName, {
-      ...options,
-      contentType: {
-        requestType: ContentType.FORM_DATA,
-        responseType: ContentType.JSON,
-      },
-    });
-  }
+	static createXml<T>(
+		entityName: string,
+		options: Omit<ApiServiceOptions, 'contentType'> & { xmlRootName?: string },
+	): ApiService<T> {
+		return this.create<T>(entityName, {
+			...options,
+			contentType: {
+				requestType: ContentType.XML,
+				responseType: ContentType.XML,
+				xmlRootName: options.xmlRootName,
+			},
+		});
+	}
 
-  static createFormUrlencoded<T>(
-    entityName: string,
-    options: Omit<ApiServiceOptions, "contentType">,
-  ): ApiService<T> {
-    return this.create<T>(entityName, {
-      ...options,
-      contentType: {
-        requestType: ContentType.FORM_URLENCODED,
-        responseType: ContentType.JSON,
-      },
-    });
-  }
+	static createFormData<T>(
+		entityName: string,
+		options: Omit<ApiServiceOptions, 'contentType'>,
+	): ApiService<T> {
+		return this.create<T>(entityName, {
+			...options,
+			contentType: {
+				requestType: ContentType.FORM_DATA,
+				responseType: ContentType.JSON,
+			},
+		});
+	}
+
+	static createFormUrlencoded<T>(
+		entityName: string,
+		options: Omit<ApiServiceOptions, 'contentType'>,
+	): ApiService<T> {
+		return this.create<T>(entityName, {
+			...options,
+			contentType: {
+				requestType: ContentType.FORM_URLENCODED,
+				responseType: ContentType.JSON,
+			},
+		});
+	}
+
+	static createWithSSLPinning<T>(
+		entityName: string,
+		options: Omit<ApiServiceOptions, 'sslPinning'> & {
+			pins: string[];
+			mode?: PinningMode;
+			hosts?: string[];
+		},
+	): ApiService<T> {
+		return this.create<T>(entityName, {
+			...options,
+			sslPinning: {
+				enabled: true,
+				mode: options.mode || PinningMode.SHA256,
+				pins: options.pins,
+				hosts: options.hosts,
+				rejectUnauthorized: true,
+			},
+		});
+	}
+
+	static createWithSSLPinningSHA256<T>(
+		entityName: string,
+		options: Omit<ApiServiceOptions, 'sslPinning'> & {
+			pins: string[];
+			hosts?: string[];
+		},
+	): ApiService<T> {
+		return this.createWithSSLPinning<T>(entityName, {
+			...options,
+			mode: PinningMode.SHA256,
+		});
+	}
+
+	static createWithSSLPinningCertificate<T>(
+		entityName: string,
+		options: Omit<ApiServiceOptions, 'sslPinning'> & {
+			pins: string[];
+			hosts?: string[];
+		},
+	): ApiService<T> {
+		return this.createWithSSLPinning<T>(entityName, {
+			...options,
+			mode: PinningMode.CERTIFICATE,
+		});
+	}
 }
