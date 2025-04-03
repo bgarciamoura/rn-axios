@@ -10,6 +10,7 @@ Este documento explica os comentários removidos dos arquivos de implementação
 5. [Adaptadores para Clientes HTTP](#adaptadores-para-clientes-http)
 6. [Integração com a Arquitetura HTTP](#integração-com-a-arquitetura-http)
 7. [Guia de Uso](#guia-de-uso)
+8. [Verificando e Testando o SSL Pinning](#verificando-e-testando-o-ssl-pinning)
 
 ## Conceitos Básicos
 
@@ -208,3 +209,265 @@ Para usar SSL Pinning completo, você precisa instalar os módulos nativos:
 1. Copie SSLPinningModule.swift e SSLPinningModule.m para seu projeto iOS
 2. Copie SSLPinningModule.java e SSLPinningPackage.java para seu projeto Android
 3. Registre o pacote nativo no MainApplication.java do Android
+
+
+## Verificando e Testando o SSL Pinning
+
+Para verificar se o SSL Pinning está funcionando corretamente, você pode utilizar as seguintes abordagens:
+
+### 1. Teste usando um Proxy de Depuração
+
+Esta é a forma mais convincente de verificar que o SSL Pinning está funcionando:
+
+#### Configuração:
+1. **Instale um proxy de HTTPS** como Charles Proxy, Fiddler ou mitmproxy
+2. **Configure seu dispositivo/emulador** para usar este proxy:
+   - iOS: Configurações > Wi-Fi > [Sua rede] > Configurar Proxy > Manual
+   - Android: Configurações > Wi-Fi > [Sua rede] > Modificar > Configurações avançadas > Proxy > Manual
+3. **Instale o certificado CA do proxy** no dispositivo:
+   - iOS: Baixe o certificado no dispositivo e instale através de Configurações > Geral > Perfil
+   - Android: Baixe o certificado e instale através de Configurações > Segurança > Instalar do armazenamento
+
+#### Execução do teste:
+```typescript
+// Adicione esta função em sua tela de teste
+const testSSLPinning = async () => {
+  // 1. Primeiro, desative o SSL Pinning e faça uma requisição
+  await nativeSSLPinning.setEnabled(false);
+  console.log("SSL Pinning desativado");
+  
+  try {
+    // Esta requisição deve aparecer no proxy
+    const response = await secureUserService.getAll();
+    console.log("Requisição sem SSL Pinning: SUCESSO");
+  } catch (error) {
+    console.log("Requisição sem SSL Pinning: FALHA", error.message);
+  }
+  
+  // 2. Ative o SSL Pinning e faça outra requisição
+  await nativeSSLPinning.setEnabled(true);
+  console.log("SSL Pinning ativado");
+  
+  try {
+    // Esta requisição deve falhar, pois o proxy está interceptando
+    const response = await secureUserService.getAll();
+    console.log("Requisição com SSL Pinning: SUCESSO (FALHA NO TESTE)");
+  } catch (error) {
+    // Isso é esperado! O SSL Pinning deve rejeitar o certificado do proxy
+    console.log("Requisição com SSL Pinning: FALHA (ESPERADO)", error.message);
+  }
+};
+```
+
+#### O que observar:
+- Com SSL Pinning desativado: As requisições aparecem no proxy e você pode ver os dados transmitidos
+- Com SSL Pinning ativado: As requisições falham com erros como "certificate verification failed" ou "trust anchor for certification path not found"
+
+#### Limitações:
+- Requer configuração manual do proxy e certificado
+- Alguns dispositivos podem ter dificuldade em instalar certificados de CA personalizados
+
+### 2. Logs no Código
+
+Adicione logs detalhados nas implementações nativas para ver o processo de verificação de certificados:
+
+#### Para iOS (em SSLPinningModule.swift):
+
+```swift
+func validateCertificate(serverTrust: SecTrust, domain: String?) -> Bool {
+    if !self.enabled {
+        print("SSL Pinning: Desativado para domínio \(domain ?? "desconhecido")")
+        return true
+    }
+    
+    if !self.enabledDomains.isEmpty, let domain = domain {
+        let shouldValidate = self.enabledDomains.contains { domain == $0 || domain.hasSuffix(".\($0)") }
+        if !shouldValidate {
+            print("SSL Pinning: Domínio \(domain) não está na lista de domínios habilitados")
+            return true
+        }
+    }
+    
+    var result = false
+    print("SSL Pinning: Validando certificado para \(domain ?? "desconhecido") usando modo \(self.pinningMode)")
+    
+    switch self.pinningMode {
+    case .certificate:
+        result = validateWithCertificates(serverTrust: serverTrust)
+        print("SSL Pinning (Certificate): \(result ? "APROVADO" : "REJEITADO")")
+        
+    case .publicKey:
+        result = validateWithPublicKeys(serverTrust: serverTrust)
+        print("SSL Pinning (Public Key): \(result ? "APROVADO" : "REJEITADO")")
+        
+    case .sha256:
+        result = validateWithHashes(serverTrust: serverTrust)
+        print("SSL Pinning (SHA256): \(result ? "APROVADO" : "REJEITADO")")
+    }
+    
+    let finalResult = result || !self.rejectUnauthorized
+    print("SSL Pinning: Resultado final para \(domain ?? "desconhecido"): \(finalResult ? "APROVADO" : "REJEITADO")")
+    return finalResult
+}
+
+private func validateWithHashes(serverTrust: SecTrust) -> Bool {
+    let serverCertificatesCount = SecTrustGetCertificateCount(serverTrust)
+    print("SSL Pinning: Verificando \(serverCertificatesCount) certificados contra \(self.hashes.count) hashes")
+    
+    for index in 0..<serverCertificatesCount {
+        guard let serverCertificate = SecTrustGetCertificateAtIndex(serverTrust, index) else {
+            print("SSL Pinning: Não foi possível acessar o certificado no índice \(index)")
+            continue
+        }
+        
+        let serverCertificateData = SecCertificateCopyData(serverCertificate) as Data
+        let serverCertificateHash = sha256(data: serverCertificateData)
+        print("SSL Pinning: Hash do certificado \(index): \(serverCertificateHash)")
+        
+        for (hashIndex, trustedHash) in self.hashes.enumerated() {
+            print("SSL Pinning: Comparando com hash \(hashIndex): \(trustedHash)")
+            if serverCertificateHash.lowercased() == trustedHash.lowercased() {
+                print("SSL Pinning: Match encontrado!")
+                return true
+            }
+        }
+    }
+    
+    print("SSL Pinning: Nenhum match encontrado para certificados")
+    return false
+}
+```
+
+#### Para Android (em SSLPinningModule.java):
+
+```java
+private boolean validateCertificate(X509Certificate[] chain) {
+    if (chain == null || chain.length == 0) {
+        Log.d(TAG, "Validação de certificado: Falha - não há certificados na chain");
+        return false;
+    }
+    
+    try {
+        Log.d(TAG, "Validação de certificado: Verificando " + chain.length + " certificados usando modo " + pinningMode);
+        
+        switch (pinningMode) {
+            case CERTIFICATE:
+                boolean certResult = validateWithCertificates(chain);
+                Log.d(TAG, "Validação de certificado (modo CERTIFICATE): " + (certResult ? "APROVADO" : "REJEITADO"));
+                return certResult;
+                
+            case PUBLIC_KEY:
+                boolean keyResult = validateWithPublicKeys(chain);
+                Log.d(TAG, "Validação de certificado (modo PUBLIC_KEY): " + (keyResult ? "APROVADO" : "REJEITADO"));
+                return keyResult;
+                
+            case SHA256:
+                boolean hashResult = validateWithHashes(chain);
+                Log.d(TAG, "Validação de certificado (modo SHA256): " + (hashResult ? "APROVADO" : "REJEITADO"));
+                return hashResult;
+                
+            default:
+                Log.d(TAG, "Validação de certificado: Modo desconhecido: " + pinningMode);
+                return false;
+        }
+    } catch (Exception e) {
+        Log.e(TAG, "Erro na validação do certificado", e);
+        return false;
+    }
+}
+
+private boolean validateWithHashes(X509Certificate[] chain) throws Exception {
+    for (int i = 0; i < chain.length; i++) {
+        X509Certificate cert = chain[i];
+        byte[] certData = cert.getEncoded();
+        String certHash = sha256(certData);
+        
+        Log.d(TAG, "Certificado " + i + " Hash: " + certHash);
+        
+        for (int j = 0; j < hashes.size(); j++) {
+            String trustedHash = hashes.get(j);
+            Log.d(TAG, "Comparando com hash " + j + ": " + trustedHash);
+            
+            if (certHash.equalsIgnoreCase(trustedHash)) {
+                Log.d(TAG, "Match encontrado!");
+                return true;
+            }
+        }
+    }
+    
+    Log.d(TAG, "Nenhum hash corresponde aos certificados pinados");
+    return false;
+}
+```
+
+#### Como usar os logs:
+1. **Adicione filtros de log** no Logcat (Android) ou Console (iOS) para ver apenas os logs do SSL Pinning
+2. **Faça requisições de teste** com SSL Pinning ativado e desativado
+3. **Observe os logs** para ver exatamente o que está acontecendo durante a verificação
+
+#### Vantagens:
+- Mostra detalhes internos do processo de verificação
+- Ajuda a identificar problemas específicos (ex: hash incorreto, formato errado)
+- Não requer configuração externa (como proxy)
+
+### 3. Análise do Tráfego de Rede
+
+Para uma análise mais profunda, você pode examinar o tráfego de rede em dispositivos com root/jailbreak:
+
+#### Ferramentas:
+- **Wireshark**: Para captura e análise detalhada de pacotes
+- **tcpdump**: Para captura de pacotes em dispositivos Android com root
+- **SSLsplit**: Para testes avançados de interceptação HTTPS
+
+#### Em dispositivos Android com root:
+
+```bash
+# Instale o tcpdump no dispositivo
+adb shell su -c "mount -o rw,remount /system"
+adb push tcpdump /system/bin/
+adb shell su -c "chmod 755 /system/bin/tcpdump"
+
+# Capture o tráfego
+adb shell su -c "tcpdump -n -s 0 -w /sdcard/capture.pcap 'host api.example.com'"
+
+# Em outro terminal, execute sua aplicação e faça requisições
+
+# Copie o arquivo de captura para o PC
+adb pull /sdcard/capture.pcap
+
+# Abra o arquivo no Wireshark para análise
+```
+
+#### Análise no Wireshark:
+1. Abra o arquivo de captura com Wireshark
+2. Filtre por `ssl` ou `tls`
+3. Procure por handshakes TLS e alertas
+
+#### O que observar:
+- **Com SSL Pinning ativo**: Você verá alertas TLS como "certificate_unknown" ou "bad_certificate"
+- **Com SSL Pinning inativo**: Você verá handshakes TLS completados com sucesso
+
+#### Análise de Handshake TLS:
+Procure por pacotes de handshake TLS e inspecione os certificados trocados:
+
+1. **Client Hello**: Início da conexão pelo cliente
+2. **Server Hello + Certificate**: Servidor enviando seus certificados 
+3. **Certificate Verify**: Verificação do certificado (onde o SSL Pinning atua)
+4. **Alert**: Alertas de falha (se o certificado for rejeitado)
+
+#### Limitações:
+- Requer dispositivo com root/jailbreak
+- Complexidade técnica mais alta
+- Muitos detalhes de baixo nível que podem ser difíceis de interpretar
+
+### Combinando Métodos
+
+Para uma verificação mais completa, combine os métodos:
+
+1. **Configure logs detalhados** nas implementações nativas
+2. **Use um proxy como Charles** com e sem SSL Pinning ativado
+3. **Capture o tráfego com Wireshark** para análise detalhada
+4. **Crie testes automatizados** que verificam o comportamento correto
+
+Isso fornecerá evidências claras de que o SSL Pinning está funcionando corretamente e proteção sua aplicação contra ataques MITM.
+
